@@ -82,6 +82,9 @@ function App() {
     setOnboardingData(persistable)
     setUserName(data.name)
     if (data.targetRole) setSelectedRole(data.targetRole)
+    // After onboarding, take the student straight to Profile Scan
+    // so they immediately understand what to do next
+    setActiveTab('profile-scan')
     // Run profile scan in background if resume or github was provided
     if (resumeFile || data.githubUsername) {
       try {
@@ -567,12 +570,12 @@ const CareerIntelligence = ({ metrics, masteryData, marketStats, setActiveTab })
             onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,240,255,0.08) 0%, rgba(0,240,255,0.03) 100%)'; e.currentTarget.style.transform = 'none' }}
           >
             <div style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              🤖 Autonomous Skill Recommendation
-              <span style={{ background: 'rgba(0,240,255,0.15)', border: '1px solid rgba(0,240,255,0.35)', borderRadius: '999px', padding: '0.1rem 0.5rem', fontSize: '0.6rem', letterSpacing: '0.06em' }}>AGENTIC INTELLIGENCE LOOP</span>
+              🎯 Your Coach Recommends
+              <span style={{ background: 'rgba(0,240,255,0.15)', border: '1px solid rgba(0,240,255,0.35)', borderRadius: '999px', padding: '0.1rem 0.5rem', fontSize: '0.6rem', letterSpacing: '0.06em' }}>AI COACH</span>
             </div>
             <div style={{ fontWeight: 800, fontSize: '1.35rem', color: 'var(--text-primary)', lineHeight: 1.2 }}>{nextSkill}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>Re-ranked by market demand · gap severity · your mastery</div>
-            <div style={{ marginTop: '0.3rem', fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 700 }}>→ Agentic Quest: Tackle your highest-impact skill</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>Chosen based on real job market demand and where you have the biggest gap</div>
+            <div style={{ marginTop: '0.3rem', fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 700 }}>→ Go to Daily Quest to start working on this</div>
           </div>
         )}
 
@@ -643,11 +646,11 @@ const CareerIntelligence = ({ metrics, masteryData, marketStats, setActiveTab })
 const LOOP_STEPS = ['OBSERVE', 'REASON', 'PLAN', 'ACT', 'REFLECT']
 const STEP_ICONS = { OBSERVE: '👁', REASON: '🧠', PLAN: '📋', ACT: '⚡', REFLECT: '🔄' }
 const STEP_DESC = {
-  OBSERVE: 'Gathering signals — skills, mastery, XP, market trends',
-  REASON: 'LLM analyzing state and deciding highest-impact action',
-  PLAN: 'Building prioritized sequence of tool calls',
-  ACT: 'Executing tools: gap analysis · impact scoring · quest generation',
-  REFLECT: 'Storing outcomes, updating user state, generating insights',
+  OBSERVE: 'Checking your skills, progress and what jobs are trending right now',
+  REASON: 'Figuring out which skill will have the biggest impact on your career',
+  PLAN: 'Deciding what to work on and in what order',
+  ACT: 'Running: skill gap analysis → impact ranking → roadmap update',
+  REFLECT: 'Saving results and updating your next recommended skill',
 }
 
 const AgentActivityFeed = ({ agentReport, agentRunning, agentStep, agentLog, onRunAgent }) => {
@@ -658,7 +661,7 @@ const AgentActivityFeed = ({ agentReport, agentRunning, agentStep, agentLog, onR
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <span style={{ fontSize: '1.1rem' }}>🤖</span>
-            <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-primary)' }}>Agentic Intelligence Loop</span>
+            <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-primary)' }}>Your AI Career Coach</span>
             {agentRunning && (
               <span style={{ background: 'rgba(0,240,255,0.15)', border: '1px solid rgba(0,240,255,0.4)', borderRadius: '999px', padding: '0.1rem 0.6rem', fontSize: '0.62rem', letterSpacing: '0.08em', color: 'var(--accent-primary)', animation: 'pulse 1.5s infinite' }}>
                 RUNNING
@@ -727,12 +730,12 @@ const AgentActivityFeed = ({ agentReport, agentRunning, agentStep, agentLog, onR
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
           {/* Reasoning */}
           <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '0.9rem', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>🧠 Agent Reasoning</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>🧠 What Your Coach Is Thinking</div>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{agentReport.reasoning || '—'}</div>
           </div>
           {/* Actions taken */}
           <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '0.9rem', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>⚡ Actions Taken</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>⚡ What Your Coach Did</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               {(agentReport.actions_taken || []).map((a, i) => (
                 <span key={i} style={{ fontSize: '0.75rem', color: a.startsWith('✓') ? '#4ade80' : '#f87171' }}>{a}</span>
@@ -1151,7 +1154,7 @@ const Sidebar = ({ activeTab, setActiveTab, metrics }) => {
     { id: 'profile-scan', label: 'Profile Scan', icon: ScanFace },
     { id: 'role-gap', label: 'Role Gap', icon: Target },
     { id: 'quest-map', label: 'Quest Map', icon: Map },
-    { id: 'daily-quest', label: 'Eat the Frog', icon: Swords },
+    { id: 'daily-quest', label: 'Daily Quest', icon: Swords },
     { id: 'stats', label: 'Stats', icon: BarChart2 },
   ]
 
@@ -1237,7 +1240,35 @@ const WelcomeSection = ({ metrics, userName, onSetName }) => {
 
   const save = () => { if (draft.trim()) { onSetName(draft.trim()); setEditing(false) } }
 
+  const hasNoProgress = !metrics?.learned_skills?.length && !metrics?.total_completed_tasks
+
   return (
+    <>
+    {hasNoProgress && (
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(0,240,255,0.08) 0%, rgba(34,197,94,0.06) 100%)',
+        border: '1px solid rgba(0,240,255,0.25)', borderRadius: '16px',
+        padding: '1.25rem 1.5rem', marginBottom: '1.5rem',
+        display: 'flex', alignItems: 'flex-start', gap: '1rem'
+      }}>
+        <span style={{ fontSize: '2rem', flexShrink: 0 }}>🚀</span>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.3rem', color: 'var(--text-primary)' }}>Start here — 3 steps to get going</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            {[
+              { step: '1', text: 'Scan your resume or GitHub to extract your skills', action: 'Profile Scan', tab: 'profile-scan' },
+              { step: '2', text: 'Run a Role Gap analysis to see exactly what you\'re missing', action: 'Role Gap', tab: 'role-gap' },
+              { step: '3', text: 'Complete a Daily Quest to earn XP and build verified skills', action: 'Daily Quest', tab: 'daily-quest' },
+            ].map(({ step, text }) => (
+              <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.83rem', color: 'var(--text-muted)' }}>
+                <span style={{ background: 'rgba(0,240,255,0.15)', borderRadius: '999px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent-primary)', flexShrink: 0 }}>{step}</span>
+                {text}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
     <section className="welcome-card">
       <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
         <div className="welcome-badge">
@@ -1269,9 +1300,9 @@ const WelcomeSection = ({ metrics, userName, onSetName }) => {
               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '0.5rem', fontWeight: 400 }}>✎</span>
             </h1>
           )}
-          <p>Your career quest awaits. Level up by completing daily challenges.</p>
+          <p>Your career quest awaits. Complete quests to earn XP and level up.</p>
 
-          <div className="level-info">
+          <div className="level-info" title="Earn XP by completing daily quests, verifying skills, and finishing your roadmap steps. Every 500 XP = 1 level up.">
             <div className="level-text">
               <span>LVL {metrics?.level || 1} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>NEXT LEVEL</span></span>
               <span style={{ color: 'var(--text-muted)' }}>{metrics ? metrics.xp % 500 : 0}/500</span>
@@ -1297,6 +1328,7 @@ const WelcomeSection = ({ metrics, userName, onSetName }) => {
         </div>
       </div>
     </section>
+    </>
   )
 }
 
@@ -1362,8 +1394,8 @@ const ActionGrid = ({ setActiveTab }) => {
             <Swords size={24} />
           </div>
           <div>
-            <h3 style={{ fontSize: '1rem' }}>Eat the Frog</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>+5–20 XP available</span>
+            <h3 style={{ fontSize: '1rem' }}>Today's Challenge</h3>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tackle your hardest skill first · +5–20 XP</span>
           </div>
         </div>
         <ChevronRight size={20} color="var(--text-muted)" />
@@ -1376,7 +1408,7 @@ const ActionGrid = ({ setActiveTab }) => {
           </div>
           <div>
             <h3 style={{ fontSize: '1rem' }}>Scan Profile</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Unlock skill tree</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Upload resume or GitHub to map your skills</span>
           </div>
         </div>
         <ChevronRight size={20} color="var(--text-muted)" />
@@ -1646,6 +1678,18 @@ const RoleGap = ({ userSkills, userAddedSkills = [], onAddSkill, onRemoveSkill, 
 
         {error && (
           <p style={{ color: 'var(--accent-orange)', marginTop: '0.5rem', fontSize: '0.9rem' }}>⚠ {error}</p>
+        )}
+
+        {/* ── No-skills hint ── */}
+        {userSkills.length === 0 && userAddedSkills.length === 0 && (
+          <div style={{
+            marginTop: '1rem', padding: '0.85rem 1rem', borderRadius: '10px',
+            background: 'rgba(251,146,60,0.07)', border: '1px solid rgba(251,146,60,0.25)',
+            fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.6rem'
+          }}>
+            <span style={{ fontSize: '1.1rem' }}>💡</span>
+            <span>No skills found yet. <strong style={{ color: 'var(--accent-primary)' }}>Go to Profile Scan first</strong> to auto-extract your skills from your resume or GitHub — then come back here for a full gap analysis.</span>
+          </div>
         )}
 
         {/* ── Manually Add Skills ── */}
@@ -2260,9 +2304,9 @@ const DailyQuest = ({ onComplete, selectedRole, allUserSkills, nextPrioritySkill
         <div>
           <div className="scan-title">
             <Swords size={32} color="var(--accent-primary)" />
-            <h2>Eat the Frog</h2>
+            <h2>Today's Challenge</h2>
           </div>
-          <p className="scan-subtitle">Pick a skill, get an AI challenge, earn XP.</p>
+          <p className="scan-subtitle">Pick a skill gap, get an AI-generated challenge, earn XP. Do your hardest task first.</p>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ color: 'var(--accent-orange)', fontWeight: 700 }}>+5–20 XP</div>
