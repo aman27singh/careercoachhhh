@@ -39,7 +39,16 @@ from typing import Any
 from app.services.llm_service import ask_llm
 from app.services.role_engine import analyze_role
 from app.services import skill_impact_engine, mastery_tracker, market_service, user_store
-from app.agents import gap_agent, roadmap_agent
+from app.agents import (
+    gap_agent,
+    roadmap_agent,
+    skill_agent,
+    market_agent,
+    project_agent,
+    challenge_agent,
+    resource_agent,
+    feedback_agent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +56,20 @@ logger = logging.getLogger(__name__)
 # ── Tool definitions the agent can call ───────────────────────────────────────
 
 AGENT_TOOLS = {
-    "analyze_skill_gaps": "Analyze the user's skill gaps for their target role using live market data.",
-    "compute_skill_impact": "Score each missing skill by impact: market demand × gap severity × career relevance.",
-    "generate_quest": "Create a personalized daily quest to close the highest-impact skill gap.",
-    "update_mastery": "Recompute mastery levels across all user skills based on XP, verifications, and GitHub signals.",
-    "refresh_market_data": "Pull fresh job listing data to update what skills are in demand right now.",
-    "generate_roadmap": "Build an updated, prioritized learning roadmap based on current gaps and mastery.",
-    "set_priority_skill": "Update the user's next recommended skill based on the latest re-ranking.",
+    # ── Core pipeline ────────────────────────────────────────────────────────
+    "analyze_skill_gaps":    "Analyze the user's skill gaps for their target role using live market data.",
+    "compute_skill_impact":  "Score each missing skill by impact: market demand × gap severity × career relevance.",
+    "update_mastery":        "Recompute mastery levels across all user skills based on XP, verifications, and GitHub signals.",
+    "set_priority_skill":    "Update the user's next recommended skill based on the latest re-ranking.",
+    "generate_roadmap":      "Build a dynamic, prioritized learning roadmap based on current gaps and mastery.",
+    # ── Market & skills ──────────────────────────────────────────────────────
+    "refresh_market_data":   "Pull fresh job listing data to update what skills are in demand right now.",
+    "run_market_intelligence": "Detect emerging skills and compute demand weights for the current skill set.",
+    # ── Project & challenge ──────────────────────────────────────────────────
+    "generate_project":      "Create a personalised, unique hands-on project for the user's priority skill.",
+    "generate_challenge":    "Generate a daily adaptive challenge calibrated to the user's mastery level.",
+    # ── Resources ────────────────────────────────────────────────────────────
+    "curate_resources":      "Curate precision learning resources with exact URLs, timestamps, and module links.",
 }
 
 
@@ -185,7 +201,7 @@ def _plan(reasoning: dict, observation: dict) -> list[dict]:
             seen.add(tool)
             actions.append({"tool": tool, "params": params or {}})
 
-    # Always start with fresh gap analysis if a target role is set
+    # ── Fixed pipeline order (runs every loop) ───────────────────────────────
     if observation.get("target_role"):
         add("analyze_skill_gaps", {
             "user_skills": observation["learned_skills"],
@@ -195,14 +211,22 @@ def _plan(reasoning: dict, observation: dict) -> list[dict]:
             "user_skills": observation["learned_skills"],
             "target_role": observation["target_role"],
         })
+        add("run_market_intelligence")  # Detect emerging skills
+        add("update_mastery")           # Must run before roadmap (needs mastery state)
+        add("generate_roadmap")         # Dynamic: only regens if gaps/mastery changed
 
-    add(reasoning.get("priority_action", "analyze_skill_gaps"))
+    # ── LLM-decided priority action ─────────────────────────────────────────
+    add(reasoning.get("priority_action", "set_priority_skill"))
 
+    # ── Optional enrichment actions (LLM-chosen) ────────────────────────────
     for tool in reasoning.get("additional_actions", []):
         add(tool)
 
-    # Always update mastery and set priority skill at end
-    add("update_mastery")
+    # ── Always generate today's challenge and curate resources ───────────────
+    add("generate_challenge")
+    add("curate_resources")
+
+    # ── Always end with priority skill update ────────────────────────────────
     add("set_priority_skill")
 
     return actions
@@ -220,11 +244,11 @@ def _act(plan: list[dict], observation: dict, reasoning: dict) -> dict:
     for step in plan:
         tool = step["tool"]
         try:
+            # ── Core Gap Analysis ─────────────────────────────────────────────
             if tool == "analyze_skill_gaps":
                 if target_role:
                     role_analysis = analyze_role(user_skills, target_role)
                     raw_gaps = role_analysis.get("missing_skills", [])
-                    # Convert to dicts if needed
                     gaps_dicts = [g if isinstance(g, dict) else g.dict() for g in raw_gaps]
                     enriched = gap_agent.run(user_skills, target_role, gaps_dicts)
                     results["gaps"] = enriched
@@ -236,23 +260,21 @@ def _act(plan: list[dict], observation: dict, reasoning: dict) -> dict:
                         user_skills=user_skills,
                         target_role=target_role,
                     )
-                    results["impact_scores"] = impact[:5]  # top 5
+                    results["impact_scores"] = impact[:5]
 
-            elif tool == "generate_quest":
-                gaps = results.get("gaps") or []
-                if gaps:
-                    top_skill = gaps[0].get("skill", "")
-                    if top_skill:
-                        from app.agents import evaluator_agent
-                        try:
-                            quest = evaluator_agent.generate_quest(top_skill, user_skills, target_role)
-                            results["generated_quest"] = quest
-                        except Exception:
-                            results["generated_quest"] = {
-                                "task": f"Study and implement a project using {top_skill}",
-                                "skill": top_skill,
-                            }
+            # ── Market Intelligence Agent ─────────────────────────────────────
+            elif tool == "run_market_intelligence":
+                if target_role:
+                    market_intel = market_agent.run(
+                        user_skills=user_skills,
+                        target_role=target_role,
+                        force_refresh=False,
+                    )
+                    results["market_intelligence"] = market_intel
+                    results["emerging_skills"] = market_intel.get("emerging_skills", [])[:3]
+                    results["market_saturation"] = market_intel.get("market_saturation", 0)
 
+            # ── Update Mastery ────────────────────────────────────────────────
             elif tool == "update_mastery":
                 db_user = user_store.get_user(user_id) or {}
                 mastery = mastery_tracker.compute_mastery_for_all_skills(
@@ -264,27 +286,108 @@ def _act(plan: list[dict], observation: dict, reasoning: dict) -> dict:
                     k: v["level_name"] for k, v in mastery.items()
                 }
 
+            # ── Refresh Market Data ───────────────────────────────────────────
             elif tool == "refresh_market_data":
-                try:
-                    market_result = market_service.refresh_market_data(write=True)
-                    results["market_refresh"] = {
-                        "roles_updated": market_result.get("roles_updated", 0),
-                        "jobs_processed": market_result.get("total_jobs_processed", 0),
-                    }
-                except Exception as exc:
-                    results["market_refresh"] = {"error": str(exc)}
+                market_result = market_service.refresh_market_data(write=True)
+                results["market_refresh"] = {
+                    "roles_updated": market_result.get("roles_updated", 0),
+                    "jobs_processed": market_result.get("total_jobs_processed", 0),
+                }
 
+            # ── Dynamic Roadmap Generation ────────────────────────────────────
             elif tool == "generate_roadmap":
                 gaps = results.get("gaps") or []
                 if gaps and target_role:
-                    try:
-                        roadmap = roadmap_agent.run(user_skills, target_role, gaps)
-                        results["roadmap"] = roadmap
-                    except Exception:
-                        pass
+                    db_user = user_store.get_user(user_id) or {}
+                    # Check if roadmap is stale (mastery changed or gaps changed)
+                    stored_roadmap = db_user.get("roadmap")
+                    stored_gap_sig = db_user.get("roadmap_gap_signature", "")
+                    current_gap_sig = "|".join(sorted(g.get("skill", "") for g in gaps[:5]))
+                    needs_regen = (
+                        not stored_roadmap
+                        or stored_gap_sig != current_gap_sig
+                        or results.get("updated_mastery")  # mastery changed this loop
+                    )
+                    if needs_regen:
+                        roadmap_result = roadmap_agent.run(gaps, target_role)
+                        results["roadmap"] = roadmap_result
+                        results["roadmap_regenerated"] = True
+                        # Persist roadmap + gap signature so we detect staleness next run
+                        try:
+                            user_store.update_user(user_id, {
+                                "roadmap": roadmap_result,
+                                "roadmap_gap_signature": current_gap_sig,
+                            })
+                        except Exception:
+                            pass
+                    else:
+                        results["roadmap"] = stored_roadmap
+                        results["roadmap_regenerated"] = False
 
+            # ── Project Generation Agent ──────────────────────────────────────
+            elif tool == "generate_project":
+                gaps = results.get("gaps") or []
+                top_skill = (
+                    results.get("impact_scores", [{}])[0].get("skill")
+                    or (gaps[0].get("skill") if gaps else None)
+                )
+                if top_skill and target_role:
+                    db_user = user_store.get_user(user_id) or {}
+                    mastery_data = observation.get("mastery_data", {})
+                    mastery_lvl = 0
+                    if top_skill in mastery_data:
+                        mastery_lvl = mastery_data[top_skill].get("level", 0)
+                    completed_projects = db_user.get("completed_projects", [])
+                    project = project_agent.run(
+                        user_id=user_id,
+                        skill=top_skill,
+                        target_role=target_role,
+                        mastery_level=mastery_lvl,
+                        completed_projects=completed_projects,
+                    )
+                    results["generated_project"] = project
+
+            # ── Daily Challenge Agent ─────────────────────────────────────────
+            elif tool == "generate_challenge":
+                gaps = results.get("gaps") or []
+                top_skill = (
+                    results.get("impact_scores", [{}])[0].get("skill")
+                    or (gaps[0].get("skill") if gaps else None)
+                )
+                if top_skill:
+                    mastery_data = observation.get("mastery_data", {})
+                    mastery_lvl = 0
+                    if top_skill in mastery_data:
+                        mastery_lvl = mastery_data[top_skill].get("level", 0)
+                    daily_challenge = challenge_agent.generate(
+                        user_id=user_id,
+                        skill=top_skill,
+                        mastery_level=mastery_lvl,
+                    )
+                    results["daily_challenge"] = daily_challenge
+
+            # ── Resource Curation Agent ───────────────────────────────────────
+            elif tool == "curate_resources":
+                gaps = results.get("gaps") or []
+                top_skills_to_resource = [
+                    g.get("skill") for g in gaps[:3] if g.get("skill")
+                ]
+                if top_skills_to_resource and target_role:
+                    mastery_data = observation.get("mastery_data", {})
+                    mastery_map = {
+                        s: mastery_data.get(s, {}).get("level", 0)
+                        for s in top_skills_to_resource
+                    }
+                    resources = resource_agent.batch_run(
+                        skills=top_skills_to_resource,
+                        target_role=target_role,
+                        mastery_map=mastery_map,
+                        resources_per_skill=3,
+                    )
+                    results["curated_resources"] = resources
+
+            # ── Set Priority Skill ────────────────────────────────────────────
             elif tool == "set_priority_skill":
-                # Determine top priority skill from impact scores or gaps
                 top_skill = None
                 if results.get("impact_scores"):
                     top_skill = results["impact_scores"][0].get("skill")
@@ -294,11 +397,8 @@ def _act(plan: list[dict], observation: dict, reasoning: dict) -> dict:
                     top_skill = reasoning["identified_gaps"][0]
 
                 if top_skill:
-                    try:
-                        user_store.set_next_priority_skill(user_id, top_skill)
-                        results["priority_skill_set"] = top_skill
-                    except Exception:
-                        results["priority_skill_set"] = top_skill
+                    user_store.set_next_priority_skill(user_id, top_skill)
+                    results["priority_skill_set"] = top_skill
 
         except Exception as exc:
             logger.warning("ACT step '%s' failed: %s", tool, exc)
@@ -333,8 +433,34 @@ def _reflect(observation: dict, reasoning: dict, actions_taken: list[dict], resu
         outcomes["top_gaps"] = [g.get("skill") for g in results["gaps"][:3]]
     if "updated_mastery" in results:
         outcomes["mastery_updated"] = True
-    if "generated_quest" in results:
-        outcomes["quest"] = results["generated_quest"].get("task", "")[:80]
+    if "generated_project" in results:
+        outcomes["project"] = results["generated_project"].get("title", "")[:80]
+    if "daily_challenge" in results:
+        outcomes["challenge"] = results["daily_challenge"].get("question", "")[:80]
+    if "curated_resources" in results:
+        outcomes["resources_curated"] = list(results["curated_resources"].keys())
+    if "emerging_skills" in results:
+        outcomes["emerging_skills"] = [s.get("skill") for s in results["emerging_skills"]]
+    if results.get("roadmap_regenerated"):
+        outcomes["roadmap_updated"] = True
+
+    # ── Use feedback_agent for unified XP / insight ───────────────────────────
+    try:
+        xp_delta = 0  # Loop itself doesn't award XP; activities do
+        priority_skill = results.get("priority_skill_set")
+        feedback_result = feedback_agent.record_activity(
+            user_id=user_id,
+            activity_type="agent_loop_completed",
+            skill=priority_skill,
+            xp_delta=xp_delta,
+            mastery_delta=0.0,
+            metadata={"outcomes": outcomes},
+        )
+        outcomes["insight"] = feedback_result.get("insight", "")
+        outcomes["streak"] = feedback_result.get("streak", 0)
+        outcomes["consistency"] = feedback_result.get("consistency_score", 0)
+    except Exception as exc:
+        logger.debug("_reflect: feedback_agent call failed: %s", exc)
 
     # Persist last_agent_run timestamp to DynamoDB
     try:

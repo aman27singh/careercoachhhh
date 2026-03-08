@@ -37,6 +37,7 @@ from __future__ import annotations
 import logging
 import os
 from decimal import Decimal
+from typing import Any
 
 import boto3
 from boto3.dynamodb.conditions import Attr
@@ -131,7 +132,70 @@ def create_user(user_id: str) -> dict:
     return _deserialise(item)
 
 
-def update_xp(user_id: str, amount: int) -> dict:
+def update_user(user_id: str, fields: dict) -> None:
+    """Generic upsert — write arbitrary fields to a user record.
+
+    Handles Decimal conversion for numeric values and skips keys whose value
+    is None.  Creates the user record if it does not exist.
+
+    Args:
+        user_id: Target user.
+        fields:  Dict of attribute_name → value.  Nested dicts are stored as
+                 DynamoDB maps; lists and sets are stored as-is.
+    """
+    if not fields:
+        return
+
+    # Ensure user exists
+    if get_user(user_id) is None:
+        try:
+            create_user(user_id)
+        except ValueError:
+            pass  # Already existed (race condition)
+
+    expr_parts: list[str] = []
+    expr_names: dict[str, str] = {}
+    expr_values: dict[str, Any] = {}
+
+    for key, val in fields.items():
+        if val is None:
+            continue
+        placeholder = f"#k{len(expr_names)}"
+        value_key = f":v{len(expr_values)}"
+        expr_names[placeholder] = key
+        expr_values[value_key] = _serialise_value(val)
+        expr_parts.append(f"{placeholder} = {value_key}")
+
+    if not expr_parts:
+        return
+
+    try:
+        _get_table().update_item(
+            Key={"user_id": user_id},
+            UpdateExpression="SET " + ", ".join(expr_parts),
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_values,
+        )
+    except ClientError as exc:
+        logger.error("DynamoDB update_user failed for user '%s': %s", user_id, exc)
+        raise
+
+
+def _serialise_value(val):
+    """Recursively convert Python types to DynamoDB-compatible types."""
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, int):
+        return Decimal(val)
+    if isinstance(val, float):
+        return Decimal(str(val))
+    if isinstance(val, dict):
+        return {k: _serialise_value(v) for k, v in val.items()}
+    if isinstance(val, list):
+        return [_serialise_value(i) for i in val]
+    return val
+
+
     """Atomically add *amount* XP to *user_id* and recalculate level.
 
     The user record is created with ``create_user`` first if it does not exist.

@@ -436,6 +436,154 @@ def run_agent(user_id: str):
     return run_agent_loop(user_id)
 
 
+# ── Agent: Daily Challenge ────────────────────────────────────────────────────
+
+@app.get("/agent/challenge/{user_id}")
+def get_daily_challenge(user_id: str):
+    """Generate today's adaptive daily challenge for the user's priority skill.
+
+    Challenge type and difficulty are automatically calibrated to the user's
+    current mastery level (challenge_agent).
+    """
+    from app.agents import challenge_agent
+    from app.services import user_store
+
+    db_user = user_store.get_user(user_id) or {}
+    skill = db_user.get("next_priority_skill") or "Python"
+    mastery_level = db_user.get("mastery_level") or 0
+    return challenge_agent.generate(
+        user_id=user_id,
+        skill=skill,
+        mastery_level=int(mastery_level),
+    )
+
+
+@app.post("/agent/challenge/{user_id}/evaluate")
+def evaluate_challenge(user_id: str, payload: dict):
+    """Evaluate a user's answer to their daily challenge.
+
+    Expects JSON body: {"challenge": {...}, "answer": "..."}
+    Returns pass/fail, XP earned, streak, and detailed feedback.
+    """
+    from app.agents import challenge_agent
+
+    challenge = payload.get("challenge", {})
+    answer = payload.get("answer", "")
+    return challenge_agent.evaluate(
+        user_id=user_id,
+        challenge=challenge,
+        answer_text=answer,
+    )
+
+
+# ── Agent: Project Generation ─────────────────────────────────────────────────
+
+@app.get("/agent/project/{user_id}")
+def get_personalized_project(user_id: str):
+    """Generate a unique personalised hands-on project for the user.
+
+    Projects are seeded by user_id + skill so each user gets a different
+    project and repeated requests return stable results (idempotent seed).
+    Includes a 3-level hint system (project_agent).
+    """
+    from app.agents import project_agent
+    from app.services import user_store
+
+    db_user = user_store.get_user(user_id) or {}
+    skill = db_user.get("next_priority_skill") or "Python"
+    target_role = db_user.get("target_role") or "Software Engineer"
+    mastery_level = db_user.get("mastery_level") or 0
+    completed_projects = db_user.get("completed_projects") or []
+    return project_agent.run(
+        user_id=user_id,
+        skill=skill,
+        target_role=target_role,
+        mastery_level=int(mastery_level),
+        completed_projects=completed_projects,
+    )
+
+
+@app.post("/agent/project/{user_id}/evaluate")
+def evaluate_project(user_id: str, payload: dict):
+    """Autonomously evaluate a GitHub repository submission.
+
+    Expects JSON body: {"github_repo_url": "...", "project": {...}, "skill": "..."}
+    Fetches the repo, analyses code quality, and returns score + mastery delta.
+    """
+    from app.agents import evaluation_agent
+
+    return evaluation_agent.run(
+        user_id=user_id,
+        github_repo_url=payload.get("github_repo_url", ""),
+        project=payload.get("project", {}),
+        skill=payload.get("skill", ""),
+    )
+
+
+# ── Agent: Precision Resources ────────────────────────────────────────────────
+
+@app.get("/agent/resources/{user_id}")
+def get_precision_resources(user_id: str, skill: str | None = None):
+    """Return precision-curated learning resources for the user's priority skill.
+
+    Resources include exact doc section URLs, specific course modules, video
+    timestamps, and targeted GitHub examples — no generic homepage links
+    (resource_agent).
+    """
+    from app.agents import resource_agent
+    from app.services import user_store
+
+    db_user = user_store.get_user(user_id) or {}
+    target_skill = skill or db_user.get("next_priority_skill") or "Python"
+    target_role = db_user.get("target_role") or "Software Engineer"
+    mastery_level = db_user.get("mastery_level") or 0
+    return {
+        "skill": target_skill,
+        "resources": resource_agent.run(
+            skill=target_skill,
+            target_role=target_role,
+            mastery_level=int(mastery_level),
+            max_resources=6,
+        ),
+    }
+
+
+# ── Agent: Market Intelligence ────────────────────────────────────────────────
+
+@app.get("/agent/market/{user_id}")
+def get_market_intelligence(user_id: str):
+    """Return live market intelligence for the user's target role.
+
+    Detects emerging skills, computes demand weights, and reports market
+    saturation relative to the user's current skill set (market_agent).
+    """
+    from app.agents import market_agent
+    from app.services import user_store
+
+    db_user = user_store.get_user(user_id) or {}
+    target_role = db_user.get("target_role") or "Software Engineer"
+    learned_skills = db_user.get("learned_skills") or []
+    return market_agent.run(
+        user_skills=learned_skills,
+        target_role=target_role,
+        force_refresh=False,
+    )
+
+
+# ── Agent: Progress / Feedback ─────────────────────────────────────────────────
+
+@app.get("/agent/progress/{user_id}")
+def get_progress_summary(user_id: str):
+    """Return a unified learning progress snapshot (feedback_agent).
+
+    Includes XP, level, streak, consistency score, skill mastery,
+    completed task count, and XP to next level.
+    """
+    from app.agents import feedback_agent
+
+    return feedback_agent.get_progress_summary(user_id)
+
+
 # ── Learning Resources ────────────────────────────────────────────────────────
 
 @app.post("/get-resources", response_model=GetResourcesResponse)
