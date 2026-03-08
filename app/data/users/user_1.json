@@ -1,0 +1,62 @@
+{
+  "user_id": "user_1",
+  "xp": 560,
+  "level": 6,
+  "rank": "Gold",
+  "streak": 1,
+  "total_completed_tasks": 3,
+  "total_assigned_tasks": 3,
+  "execution_score": 100.0,
+  "last_submission_date": "2026-03-08",
+  "skill_distribution": {
+    "Technical": 65,
+    "System Design": 40,
+    "Execution": 78,
+    "Soft Skills": 50,
+    "Strategic": 30
+  },
+  "activity_log": [
+    {
+      "day": "Mon",
+      "xp": 45
+    },
+    {
+      "day": "Tue",
+      "xp": 52
+    },
+    {
+      "day": "Wed",
+      "xp": 38
+    },
+    {
+      "day": "Thu",
+      "xp": 65
+    },
+    {
+      "day": "Fri",
+      "xp": 48
+    }
+  ],
+  "knowledge_map": [
+    {
+      "name": "Backend",
+      "value": 40,
+      "color": "var(--accent-primary)"
+    },
+    {
+      "name": "Frontend",
+      "value": 25,
+      "color": "var(--accent-secondary)"
+    },
+    {
+      "name": "DevOps",
+      "value": 20,
+      "color": "#8B5CF6"
+    },
+    {
+      "name": "AI/ML",
+      "value": 15,
+      "color": "#F59E0B"
+    }
+  ]
+}

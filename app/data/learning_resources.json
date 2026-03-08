@@ -1,0 +1,466 @@
+[
+  {
+    "title": "RESTful API Design",
+    "category": "backend",
+    "description": "REST (Representational State Transfer) is the dominant architectural style for building web APIs. A well-designed REST API uses HTTP methods correctly, returns meaningful status codes, and structures URLs around resources rather than actions.",
+    "key_concepts": [
+      "Use nouns for endpoint paths: /users, /products, not /getUser or /createProduct",
+      "HTTP methods: GET (read), POST (create), PUT/PATCH (update), DELETE (remove)",
+      "Status codes: 200 OK, 201 Created, 400 Bad Request, 401 Unauthorized, 404 Not Found, 500 Internal Server Error",
+      "Stateless: each request must contain all information needed to process it",
+      "Versioning strategies: URL versioning (/v1/users), header versioning, query param versioning",
+      "Pagination: cursor-based pagination scales better than offset for large datasets",
+      "HATEOAS (Hypermedia) links resources together for discoverability"
+    ],
+    "tools": ["FastAPI", "Express.js", "Django REST Framework", "OpenAPI/Swagger", "Postman"],
+    "tips": [
+      "Always validate and sanitize request input server-side",
+      "Use HTTPS in production — never expose APIs over plain HTTP",
+      "Return consistent error shapes: {error, message, code}",
+      "Rate-limit public endpoints to prevent abuse"
+    ]
+  },
+  {
+    "title": "SQL Databases and Query Optimization",
+    "category": "backend",
+    "description": "Relational databases organize data into tables with defined schemas and support ACID transactions. Knowing how to write efficient SQL and design schemas correctly is foundational for backend engineers.",
+    "key_concepts": [
+      "ACID: Atomicity, Consistency, Isolation, Durability — guarantees that make transactions reliable",
+      "Indexing: B-tree indexes speed up lookups but slow down writes; index columns used in WHERE, JOIN, ORDER BY",
+      "Query execution plan: use EXPLAIN to understand how the database executes a query",
+      "Normalization: organize data to reduce redundancy (1NF, 2NF, 3NF)",
+      "Denormalization: introduce redundancy deliberately to avoid expensive joins for read-heavy workloads",
+      "Connection pooling: reuse database connections to reduce overhead (PgBouncer, HikariCP)",
+      "N+1 query problem: loading N related records with N separate queries instead of one JOIN",
+      "Transactions and isolation levels: READ COMMITTED, REPEATABLE READ, SERIALIZABLE"
+    ],
+    "tools": ["PostgreSQL", "MySQL", "SQLite", "SQLAlchemy", "Prisma", "pgAdmin"],
+    "tips": [
+      "Prefer JOINs over separate queries for related data",
+      "Avoid SELECT * in production — specify only needed columns",
+      "Use prepared statements to prevent SQL injection",
+      "Monitor slow query logs and set query timeouts"
+    ]
+  },
+  {
+    "title": "Caching Strategies",
+    "category": "backend",
+    "description": "Caching stores precomputed results to serve future requests faster. Effective caching reduces database load, decreases latency, and improves throughput. Choosing the right caching strategy is critical for scalable systems.",
+    "key_concepts": [
+      "Cache-aside (lazy loading): application checks cache first; on miss, fetches from DB and populates cache",
+      "Write-through: write to cache and DB simultaneously — keeps cache consistent but adds write latency",
+      "Write-behind (write-back): write to cache first, persist to DB asynchronously — faster writes, risk of data loss",
+      "TTL (Time To Live): cache entries expire after a set duration to prevent stale data",
+      "Cache eviction policies: LRU (Least Recently Used), LFU (Least Frequently Used), FIFO",
+      "Cache invalidation: explicitly remove or update cache entries when source data changes",
+      "Distributed cache: Redis or Memcached shared across multiple application instances",
+      "CDN caching: edge nodes cache static assets and responses close to users"
+    ],
+    "tools": ["Redis", "Memcached", "Varnish", "CloudFront", "Nginx"],
+    "tips": [
+      "Cache at the layer closest to the user when possible",
+      "Never cache sensitive user-specific data without scoping by user ID",
+      "Monitor cache hit rates — below 80% usually indicates poor cache key design",
+      "Plan cache warm-up strategy for cold starts after deployments"
+    ]
+  },
+  {
+    "title": "Authentication and Authorization",
+    "category": "backend",
+    "description": "Authentication verifies who a user is; authorization decides what they can do. Getting security right in these two areas is critical — mistakes lead to data breaches and privilege escalation.",
+    "key_concepts": [
+      "JWT (JSON Web Token): stateless token containing claims; signed with a secret or RSA key pair",
+      "OAuth 2.0: delegation framework — allows third parties to act on behalf of a user without sharing credentials",
+      "OpenID Connect (OIDC): identity layer on top of OAuth 2.0 for authentication",
+      "Session-based auth: server stores session state; client holds a session cookie",
+      "RBAC (Role-Based Access Control): permissions assigned to roles, roles assigned to users",
+      "ABAC (Attribute-Based Access Control): fine-grained policies based on user, resource, and environment attributes",
+      "MFA (Multi-Factor Authentication): adds a second factor (TOTP, SMS, hardware key) beyond password",
+      "Password hashing: use bcrypt, Argon2, or scrypt — never store plaintext or MD5/SHA1 hashed passwords",
+      "HTTPS and secure cookies: use Secure, HttpOnly, SameSite flags on session cookies"
+    ],
+    "tools": ["Auth0", "Keycloak", "AWS Cognito", "Passport.js", "python-jose"],
+    "tips": [
+      "Keep JWT expiry short (15–60 min) and use refresh tokens",
+      "Always validate and sanitize inputs before checking permissions",
+      "Log all authentication failures for security monitoring",
+      "Rotate secrets regularly and on suspected compromise"
+    ]
+  },
+  {
+    "title": "Message Queues and Asynchronous Processing",
+    "category": "backend",
+    "description": "Message queues decouple producers from consumers, allowing systems to handle spikes in load and process work asynchronously. This is essential for reliable, scalable backend systems.",
+    "key_concepts": [
+      "Producer-consumer pattern: one service publishes messages, another consumes and processes them",
+      "At-least-once delivery: message may be delivered more than once; consumers must be idempotent",
+      "Exactly-once delivery: guaranteed but expensive; usually avoided by designing idempotent consumers",
+      "Dead-letter queue (DLQ): messages that fail processing after N retries land here for inspection",
+      "Pub/Sub vs point-to-point: pub/sub broadcasts to multiple subscribers; point-to-point targets one consumer",
+      "Backpressure: consumer signals it is overwhelmed so producer slows down",
+      "Event sourcing: store all state changes as an immutable event log instead of current state"
+    ],
+    "tools": ["RabbitMQ", "Apache Kafka", "AWS SQS", "AWS SNS", "Celery", "Redis Pub/Sub"],
+    "tips": [
+      "Design all consumers to be idempotent from day one",
+      "Monitor queue depth and consumer lag as key SLIs",
+      "Set appropriate message retention and DLQ policies",
+      "Use Kafka for high-throughput event streaming; SQS for simple task queues"
+    ]
+  },
+  {
+    "title": "Microservices Architecture",
+    "category": "backend",
+    "description": "Microservices decompose a monolith into small, independently deployable services that communicate over a network. The pattern improves scalability and team autonomy but adds operational complexity.",
+    "key_concepts": [
+      "Service boundary design: start with domain-driven design (DDD) bounded contexts",
+      "Synchronous communication: REST or gRPC for request-response interactions between services",
+      "Asynchronous communication: events via message queues for loose coupling and resilience",
+      "Service discovery: consul, Kubernetes DNS, or AWS Cloud Map let services find each other dynamically",
+      "API Gateway: single entry point that routes, authenticates, and rate-limits inter-service traffic",
+      "Circuit breaker: prevent cascading failures by failing fast when a downstream service is unhealthy",
+      "Saga pattern: manage distributed transactions across services using a sequence of local transactions",
+      "Distributed tracing: correlation IDs and tools like Jaeger/X-Ray to trace requests across services"
+    ],
+    "tools": ["Docker", "Kubernetes", "Istio", "gRPC", "AWS App Mesh", "Jaeger"],
+    "tips": [
+      "Do not prematurely decompose — start with a modular monolith",
+      "Each service should own its own database to avoid tight coupling",
+      "Prefer async communication to reduce temporal coupling",
+      "Invest in observability (logs, metrics, traces) before going to prod"
+    ]
+  },
+  {
+    "title": "Supervised Learning Fundamentals",
+    "category": "machine_learning",
+    "description": "Supervised learning trains a model on labeled data — input-output pairs — so it can predict outputs for unseen inputs. It is the most widely applied ML paradigm in industry.",
+    "key_concepts": [
+      "Training set, validation set, test set: never evaluate on training data — it leads to overfitting",
+      "Bias-variance tradeoff: high bias = underfitting (too simple), high variance = overfitting (too complex)",
+      "Loss function: quantifies prediction error; MSE for regression, cross-entropy for classification",
+      "Gradient descent: iteratively adjusts weights in the direction that minimizes the loss",
+      "Learning rate: step size during gradient descent; too high diverges, too low is slow",
+      "Regularization: L1 (Lasso) and L2 (Ridge) penalize large weights to reduce overfitting",
+      "Cross-validation: k-fold CV gives reliable performance estimate when data is limited",
+      "Feature engineering: creating informative input features often has more impact than algorithm choice"
+    ],
+    "tools": ["scikit-learn", "XGBoost", "LightGBM", "pandas", "NumPy"],
+    "tips": [
+      "Establish a simple baseline (mean prediction, logistic regression) before trying complex models",
+      "More data usually beats a better algorithm",
+      "Check class imbalance — use stratified splits and appropriate metrics (F1, AUC-ROC)",
+      "Always look at your data before modeling — EDA catches issues early"
+    ]
+  },
+  {
+    "title": "Deep Learning and Neural Networks",
+    "category": "machine_learning",
+    "description": "Deep learning uses multi-layer neural networks to learn hierarchical representations from data. It powers most modern AI breakthroughs in vision, NLP, and speech.",
+    "key_concepts": [
+      "Neuron: applies a weighted sum of inputs then a non-linear activation function (ReLU, sigmoid, tanh)",
+      "Backpropagation: computes gradients of the loss with respect to every weight via the chain rule",
+      "Batch normalization: normalizes layer inputs to stabilize and speed training",
+      "Dropout: randomly zeroes activations during training to prevent co-adaptation and overfitting",
+      "Convolutional Neural Networks (CNNs): use shared-weight filters to learn spatial features; dominant in computer vision",
+      "Recurrent Neural Networks (RNNs) / LSTMs: maintain hidden state for sequential data; mostly replaced by Transformers",
+      "Transformer architecture: self-attention mechanism; basis for BERT, GPT, and all modern LLMs",
+      "Transfer learning: fine-tune a pretrained model on your task instead of training from scratch",
+      "Mixed precision training: use float16 to halve memory and speed up GPU training"
+    ],
+    "tools": ["PyTorch", "TensorFlow", "Keras", "Hugging Face Transformers", "ONNX"],
+    "tips": [
+      "Use pretrained models (ImageNet, BERT) as starting points — don't train from scratch unless you have massive data",
+      "Monitor training and validation loss curves — divergence signals overfitting",
+      "Use a learning rate scheduler (cosine annealing, reduce on plateau)",
+      "Profile GPU utilization — most bottlenecks are data loading, not compute"
+    ]
+  },
+  {
+    "title": "MLOps and Model Deployment",
+    "category": "machine_learning",
+    "description": "MLOps applies DevOps principles to machine learning to automate training, evaluation, and deployment of models. A model that can't reach production creates no value.",
+    "key_concepts": [
+      "Experiment tracking: log hyperparameters, metrics, and artifacts for every run (MLflow, W&B)",
+      "Model registry: versioned store of trained models with metadata and lifecycle states",
+      "Feature store: centralized repository of computed features to avoid training-serving skew",
+      "Continuous training (CT): automatically retrain when data distribution shifts or scheduled",
+      "Model monitoring: track prediction drift, data drift, and business KPIs in production",
+      "Shadow deployment: run new model in parallel, log predictions, compare offline before switching",
+      "A/B testing: route a traffic split to two model versions and measure which performs better",
+      "Containerization: package model + dependencies into a Docker image for reproducible serving"
+    ],
+    "tools": ["MLflow", "Weights & Biases", "SageMaker", "BentoML", "Seldon Core", "Evidently AI"],
+    "tips": [
+      "Treat ML pipelines as code — version control everything including preprocessing",
+      "Test models like software: unit tests for features, integration tests for predictions",
+      "Log enough metadata to reproduce any training run",
+      "Automate retraining triggers based on data drift thresholds"
+    ]
+  },
+  {
+    "title": "Natural Language Processing (NLP)",
+    "category": "machine_learning",
+    "description": "NLP enables computers to understand, generate, and manipulate human language. Modern NLP is dominated by large pre-trained Transformer models fine-tuned for specific tasks.",
+    "key_concepts": [
+      "Tokenization: splitting text into subword tokens (BPE, WordPiece) used as model input",
+      "Word embeddings: dense vector representations; Word2Vec showed words with similar contexts are close in vector space",
+      "Attention mechanism: allows the model to weigh which input tokens are relevant for each output token",
+      "BERT: bidirectional encoder; good for classification, NER, QA",
+      "GPT: autoregressive decoder; good for generation tasks",
+      "Retrieval-Augmented Generation (RAG): augment LLM context with retrieved documents to reduce hallucination",
+      "Prompt engineering: crafting input prompts to elicit desired behavior from LLMs without fine-tuning",
+      "Fine-tuning: updating a pretrained model on a domain-specific dataset; LoRA/QLoRA for parameter-efficient fine-tuning"
+    ],
+    "tools": ["Hugging Face Transformers", "spaCy", "LangChain", "NLTK", "OpenAI API", "Amazon Bedrock"],
+    "tips": [
+      "Always evaluate LLM outputs — they hallucinate confidently",
+      "Use RAG to ground LLM answers in your own verified documents",
+      "For classification tasks, fine-tuning a small BERT model often beats prompting a large LLM",
+      "Clean and deduplicate your text data before training — garbage in, garbage out"
+    ]
+  },
+  {
+    "title": "Docker and Containerization",
+    "category": "cloud",
+    "description": "Docker packages an application and its dependencies into a portable container that runs consistently across environments. Containers are the foundation of modern cloud deployment.",
+    "key_concepts": [
+      "Image: immutable blueprint built from a Dockerfile; contains OS, runtime, dependencies, and app code",
+      "Container: a running instance of an image — isolated process with its own filesystem, network, and PID namespace",
+      "Dockerfile: step-by-step instructions to build an image (FROM, RUN, COPY, ENV, EXPOSE, CMD)",
+      "Multi-stage builds: use multiple FROM statements to keep the final image small by discarding build tools",
+      "Volumes: persist data outside the container lifecycle; bind mounts for development, named volumes for production",
+      "Networking: containers on the same bridge network can reach each other by service name",
+      "Docker Compose: define multi-container apps in a YAML file; single command to start the whole stack",
+      "Layer caching: each Dockerfile instruction creates a cache layer — order instructions from least to most frequent change"
+    ],
+    "tools": ["Docker Desktop", "Docker Compose", "Podman", "BuildKit", "Dive (image analysis)"],
+    "tips": [
+      "Use official slim/alpine base images to minimize attack surface and image size",
+      "Never run containers as root — use USER instruction in Dockerfile",
+      "Copy requirements.txt and install dependencies before copying app code to maximize cache hits",
+      "Use .dockerignore to exclude node_modules, .venv, .git from the build context"
+    ]
+  },
+  {
+    "title": "Kubernetes Orchestration",
+    "category": "cloud",
+    "description": "Kubernetes (K8s) automates deployment, scaling, and management of containerized applications. It is the de-facto standard for running containers in production at scale.",
+    "key_concepts": [
+      "Pod: smallest deployable unit; one or more tightly coupled containers sharing network and storage",
+      "Deployment: manages a ReplicaSet to ensure the desired number of Pod replicas are running",
+      "Service: stable DNS name and virtual IP for a set of Pods; types: ClusterIP, NodePort, LoadBalancer",
+      "Ingress: HTTP/S routing rules that expose services externally via a reverse proxy (nginx, Traefik)",
+      "ConfigMap / Secret: decouple configuration and sensitive data from container images",
+      "HorizontalPodAutoscaler (HPA): automatically scale Deployment replicas based on CPU/memory or custom metrics",
+      "Persistent Volume (PV) / Persistent Volume Claim (PVC): provision and consume storage independently of Pods",
+      "Namespace: virtual cluster within K8s for isolating resources across teams or environments",
+      "Health probes: livenessProbe restarts unhealthy containers; readinessProbe removes them from load balancer"
+    ],
+    "tools": ["kubectl", "Helm", "k9s", "ArgoCD", "AWS EKS", "GKE", "kind (local)"],
+    "tips": [
+      "Always set resource requests and limits on containers to enable correct scheduling",
+      "Use Helm charts to version and template Kubernetes manifests",
+      "Never store secrets in ConfigMaps or plain manifests — use Sealed Secrets or Vault",
+      "Run readiness probes on all HTTP services to avoid routing traffic to booting Pods"
+    ]
+  },
+  {
+    "title": "AWS Core Services for Backend Engineers",
+    "category": "cloud",
+    "description": "AWS is the leading cloud provider. Backend engineers use a core set of services for compute, storage, databases, queues, and security. Understanding these is essential for building cloud-native applications.",
+    "key_concepts": [
+      "EC2: virtual machines; choose instance type based on compute (c), memory (r), or GPU (p/g) requirements",
+      "Lambda: serverless functions that scale to zero and charge per invocation — ideal for event-driven workloads",
+      "ECS / EKS: container orchestration services built on top of EC2 for running Docker containers at scale",
+      "S3: object storage for files, backups, static assets; 11 nines durability",
+      "RDS / Aurora: managed relational databases (PostgreSQL, MySQL); Aurora Serverless scales automatically",
+      "DynamoDB: serverless NoSQL key-value and document store; single-digit millisecond latency at any scale",
+      "SQS / SNS: managed queue and pub/sub messaging; foundational for decoupled microservices",
+      "IAM: identity and access management; least-privilege roles, policies, and instance profiles",
+      "VPC: isolated virtual network; public subnets for load balancers, private subnets for compute and databases",
+      "CloudWatch: logs, metrics, alarms, and dashboards; central observability platform on AWS"
+    ],
+    "tools": ["AWS CLI", "AWS CDK", "Terraform", "boto3 (Python SDK)", "AWS SAM"],
+    "tips": [
+      "Use IAM roles — never hard-code access keys in application code or containers",
+      "Enable VPC Flow Logs and CloudTrail for security auditing",
+      "Tag all resources with environment, team, and cost-center for cost allocation",
+      "Use S3 lifecycle policies to automatically move old data to Glacier (cheaper storage tier)"
+    ]
+  },
+  {
+    "title": "Serverless Architecture",
+    "category": "cloud",
+    "description": "Serverless lets you run code without managing servers. You pay only for execution time and the cloud auto-scales to zero. It reduces operational overhead but requires different design patterns.",
+    "key_concepts": [
+      "Function as a Service (FaaS): Lambda, Azure Functions, Google Cloud Functions",
+      "Cold start: first invocation boots a new execution environment, adding latency — mitigate with provisioned concurrency",
+      "Event-driven triggers: functions respond to S3 uploads, SQS messages, API Gateway requests, DynamoDB streams",
+      "Stateless functions: do not rely on local state between invocations — use DynamoDB, S3, or Redis for state",
+      "Dead-letter queues (DLQ): capture failed Lambda invocations for analysis and retry",
+      "Concurrency limits: Lambda has a regional concurrency limit — burst traffic can throttle functions",
+      "Step Functions: orchestrate complex multi-step workflows using state machines without polling loops",
+      "API Gateway: fully managed HTTP endpoint in front of Lambda; supports REST, HTTP, and WebSocket APIs"
+    ],
+    "tools": ["AWS Lambda", "AWS SAM", "Serverless Framework", "AWS Step Functions", "Chalice"],
+    "tips": [
+      "Keep Lambda packages small — strip dev dependencies to reduce cold start time",
+      "Use environment variables for configuration — never bake secrets into the deployment package",
+      "Set reserved concurrency to protect downstream services from being overwhelmed",
+      "Write idempotent Lambda handlers — SQS delivers at least once"
+    ]
+  },
+  {
+    "title": "Infrastructure as Code (IaC)",
+    "category": "cloud",
+    "description": "Infrastructure as Code manages cloud resources through machine-readable configuration files rather than manual console clicks. It enables version control, consistency, and automated provisioning.",
+    "key_concepts": [
+      "Declarative vs imperative: Terraform and CDK let you declare desired state; the tool figures out the plan",
+      "Terraform: HCL-based IaC; provider ecosystem covers AWS, GCP, Azure, Kubernetes, and more",
+      "AWS CDK: define infrastructure using TypeScript, Python, or Java; synthesizes to CloudFormation",
+      "State file: Terraform tracks actual resource state in a .tfstate file — store remotely in S3 + DynamoDB for teams",
+      "Plan before apply: always run terraform plan to review changes before terraform apply",
+      "Modules: reusable infrastructure components that accept inputs and produce outputs",
+      "Drift detection: detect when actual cloud state diverges from declared state",
+      "GitOps: store IaC in git; use PRs for review and CI/CD pipelines to apply changes automatically"
+    ],
+    "tools": ["Terraform", "AWS CDK", "Pulumi", "CloudFormation", "Ansible", "Terragrunt"],
+    "tips": [
+      "Keep state files in a remote backend (S3 + DynamoDB lock) — never commit state to git",
+      "Use separate workspaces or directories for dev/staging/prod environments",
+      "Tag everything at the module level to ensure consistent resource tagging",
+      "Run terraform validate and tflint in CI to catch errors before review"
+    ]
+  },
+  {
+    "title": "CI/CD Pipelines",
+    "category": "software_engineering",
+    "description": "Continuous Integration automates building and testing code on every commit. Continuous Delivery/Deployment automates releasing to staging or production. Fast, reliable CI/CD is a force multiplier for engineering teams.",
+    "key_concepts": [
+      "Continuous Integration: every commit triggers a build and automated test suite",
+      "Continuous Delivery: every green build is a release candidate deployable to production with one click",
+      "Continuous Deployment: every green build is automatically deployed to production without human approval",
+      "Build stages: lint → unit test → integration test → security scan → build artifact → deploy",
+      "Artifact registry: Docker images or compiled binaries stored by immutable tags (git SHA, semver)",
+      "Blue/green deployment: two identical environments; switch traffic from blue (old) to green (new) instantly",
+      "Canary release: route a small percentage of traffic to new version; full rollout after validation",
+      "Rollback strategy: keep previous artifact; re-deploy or switch traffic back on failure"
+    ],
+    "tools": ["GitHub Actions", "GitLab CI", "Jenkins", "CircleCI", "AWS CodePipeline", "ArgoCD"],
+    "tips": [
+      "Keep build times under 10 minutes — developers stop watching slow pipelines",
+      "Fail fast: run the cheapest checks (lint) first, expensive checks (integration tests) last",
+      "Pin action versions to a SHA for security — avoid using @latest",
+      "Store secrets in the CI platform's secret store — never in YAML files"
+    ]
+  },
+  {
+    "title": "Software Testing Best Practices",
+    "category": "software_engineering",
+    "description": "Testing validates that software behaves as expected and catches regressions before they reach users. A good testing strategy balances speed, confidence, and maintenance cost.",
+    "key_concepts": [
+      "Test pyramid: many unit tests (fast, cheap), fewer integration tests, fewest E2E tests (slow, expensive)",
+      "Unit test: tests one function or class in isolation; dependencies are mocked",
+      "Integration test: tests how components interact — e.g., service + database, or two microservices",
+      "End-to-end (E2E) test: simulates a real user flow through the full system",
+      "Test coverage: aim for high coverage on business logic; 100% coverage of trivial code is waste",
+      "Test doubles: mocks (verify calls), stubs (return values), fakes (lightweight implementations)",
+      "Test-Driven Development (TDD): write the test first, then the minimal code to pass it",
+      "Property-based testing: generate random inputs to find edge cases automatically (Hypothesis for Python)"
+    ],
+    "tools": ["pytest", "Jest", "Playwright", "Testcontainers", "coverage.py", "Hypothesis"],
+    "tips": [
+      "Treat test code with the same care as production code — refactor, review, and document it",
+      "Tests that take more than 1 second to run belong in the integration layer, not unit layer",
+      "Use parameterized tests to cover multiple input scenarios without duplicating code",
+      "Mock external services (AWS, Stripe) at the boundary — not deep in business logic"
+    ]
+  },
+  {
+    "title": "Code Review Best Practices",
+    "category": "software_engineering",
+    "description": "Code reviews improve quality, share knowledge, and catch bugs before they reach production. Effective reviews are timely, constructive, and focused on the code rather than the author.",
+    "key_concepts": [
+      "PR size: smaller PRs (< 400 lines) are reviewed more thoroughly and merged faster",
+      "Reviewer checklist: correctness, readability, test coverage, security, performance, backward compatibility",
+      "Constructive feedback: suggest improvements with reasoning; ask questions instead of issuing commands",
+      "Author responsibility: write a clear PR description, link the issue/ticket, and self-review before requesting review",
+      "Automate what can be automated: lint, format, and type-check in CI — leave human reviewers for logic and design",
+      "Blocking vs non-blocking comments: distinguish between must-fix and nice-to-have feedback",
+      "Pair programming as an alternative: some teams use pairing instead of async review for high-risk changes"
+    ],
+    "tools": ["GitHub Pull Requests", "GitLab Merge Requests", "Crucible", "reviewdog", "Danger"],
+    "tips": [
+      "Review within 24 hours — stale PRs kill team velocity",
+      "Acknowledge what the author did well — not just what needs fixing",
+      "Do not nitpick style that a formatter can fix automatically",
+      "If a review takes more than 90 minutes, the PR is probably too large"
+    ]
+  },
+  {
+    "title": "System Design Fundamentals",
+    "category": "software_engineering",
+    "description": "System design interviews and real-world architecture decisions require reasoning about scalability, reliability, and trade-offs. Core principles apply whether you are designing a URL shortener or a global payment platform.",
+    "key_concepts": [
+      "Scalability: vertical scaling adds resources to one machine; horizontal scaling adds more machines",
+      "Load balancing: distributes traffic across servers; strategies include round-robin, least connections, and IP hash",
+      "CAP theorem: distributed systems can guarantee at most two of: Consistency, Availability, Partition tolerance",
+      "PACELC: extends CAP to account for latency trade-offs even when the network is healthy",
+      "Sharding: partition a database horizontally so each shard holds a subset of rows; enables horizontal scaling",
+      "Replication: copy data to multiple nodes for redundancy; leader-follower vs multi-leader vs leaderless",
+      "Consistent hashing: distribute data across a changing set of nodes with minimal redistribution on scale changes",
+      "Idempotency: designing operations so they can safely be retried without side effects"
+    ],
+    "tools": ["Draw.io", "Excalidraw", "Lucidchart"],
+    "tips": [
+      "Start with requirements: functional (what it does) and non-functional (scale, latency, SLA)",
+      "Estimate scale early: QPS, storage, bandwidth — back-of-envelope math anchors design decisions",
+      "Identify the bottleneck before optimizing; premature optimization wastes engineering time",
+      "Every design involves trade-offs — always explain why you chose one approach over another"
+    ]
+  },
+  {
+    "title": "Observability: Logging, Metrics, and Tracing",
+    "category": "software_engineering",
+    "description": "Observability allows engineers to understand the internal state of a system purely from its external outputs. The three pillars — logs, metrics, and traces — together provide the full picture needed to debug production incidents.",
+    "key_concepts": [
+      "Structured logging: emit JSON logs with consistent fields (timestamp, level, service, trace_id, message) for machine parsing",
+      "Log levels: DEBUG (verbose), INFO (normal), WARNING (degraded), ERROR (failure), CRITICAL (system down)",
+      "Metrics: numeric time-series data; counters (requests_total), gauges (memory_used), histograms (request_duration)",
+      "RED method: Rate, Errors, Duration — three service-level metrics that tell you if users are being affected",
+      "USE method: Utilization, Saturation, Errors — for infrastructure (CPU, disk, network)",
+      "Distributed tracing: a trace spans multiple services; spans are the individual units of work within a trace",
+      "Correlation ID: a unique ID generated at the entry point and propagated through all downstream calls",
+      "SLI / SLO / SLA: Service Level Indicators measured against Objectives agreed to in a Service Level Agreement"
+    ],
+    "tools": ["Prometheus", "Grafana", "OpenTelemetry", "Jaeger", "Datadog", "AWS CloudWatch", "ELK Stack"],
+    "tips": [
+      "Log at the boundary of your service — every inbound request and outbound call",
+      "Do not log PII — mask or omit sensitive fields before writing to logs",
+      "Alert on symptoms (high error rate, elevated latency) not causes (high CPU) — causes are for dashboards",
+      "Instrument before you need it — adding observability during an incident is impossible"
+    ]
+  },
+  {
+    "title": "Git and Version Control Workflows",
+    "category": "software_engineering",
+    "description": "Git is the standard version control system. Understanding branching strategies, rebasing, and collaborative workflows is essential for working effectively in any engineering team.",
+    "key_concepts": [
+      "Git branching models: GitHub Flow (main + feature branches), Git Flow (main, develop, release, hotfix)",
+      "Rebase vs merge: rebase rewrites history for a linear log; merge preserves history with a merge commit",
+      "Interactive rebase: squash fixup commits, reorder, edit messages before opening a PR",
+      "Cherry-pick: apply a specific commit from one branch to another — useful for hotfixes",
+      "Tags and semantic versioning: v1.2.3 — major.minor.patch; use annotated tags for releases",
+      "Stash: temporarily shelve uncommitted changes with git stash; restore with git stash pop",
+      "Bisect: binary search through commits to find which commit introduced a bug",
+      "Hooks: pre-commit hooks run linting and tests locally before committing"
+    ],
+    "tools": ["Git", "GitHub", "GitLab", "Bitbucket", "pre-commit", "commitizen"],
+    "tips": [
+      "Write commit messages in imperative mood: 'Add feature' not 'Added feature'",
+      "Never force-push to shared branches like main or develop",
+      "Use .gitignore from the start — committing secrets or build artifacts is painful to undo",
+      "Regularly fetch and rebase on main to reduce merge conflicts"
+    ]
+  }
+]
