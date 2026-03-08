@@ -1,31 +1,30 @@
-# 🚀 CareerCoach: Your AI-Powered Career Co-Pilot
+# 🚀 CareerCoach: Agentic AI-Powered Career Co-Pilot
 
-**CareerCoach** is a high-fidelity, data-driven dashboard designed to gamify and accelerate your professional growth. It combines AI-powered skill analysis, real-time market data, and a tiered community system to transform your career journey into an epic quest.
+**CareerCoach** is an agentic AI system that autonomously analyzes your skills, tracks mastery, and recommends high-impact actions based on real market data. The agentic intelligence loop continuously updates your roadmap, mastery tracker, and questing system, ensuring you always receive the most relevant, personalized guidance.
 
 ---
 
 ## ✨ Key Features
 
-### 🔍 1. AI Profile Scanning
+### 🤖 Agentic Intelligence Hub
+A fully autonomous intelligence engine that continuously analyzes your profile, market trends, and skill gaps. The agentic loop proactively recommends next actions, updates mastery, and surfaces new quests—no manual refresh needed.
+
+### 🔍 AI Profile Scanning
 Connect your professional identity (Resume/GitHub) to extract a deep-learning backed representation of your technical and soft skill proficiency. Uses **Ollama (LLM)** for intelligent skill mapping.
 
-### 📊 2. Role-Gap Analysis
-Compare your current skill set against real-time market demands. Our engine identifies high-priority "gaps" and suggests specific areas for improvement to make you the ideal candidate for your dream role.
+### 📊 Role-Gap Analysis
+Compare your current skill set against real-time market demands. Our agentic engine identifies high-priority "gaps" and suggests specific areas for improvement to make you the ideal candidate for your dream role.
 
-### 🗺️ 3. Dynamic Roadmap & Quest Map
-Don't just plan—execute. CareerOS generates a personalized roadmap with actionable "Quests." Visualize your path through the interactive Quest Map.
+### 🗺️ Dynamic Roadmap & Agentic Quest Map
+CareerOS generates a personalized roadmap with actionable "Agentic Quests." Visualize your path through the interactive Quest Map, updated continuously by the agentic loop.
 
-### 🐸 4. "Eat the Frog" Daily Quests
-Tackle your most challenging task first with the **Daily Quest** system. Submit your work and receive **AI-powered brutal grading** and feedback to ensure you're actually leveling up.
+### 🐸 Agentic Daily Quests
+Tackle your most challenging task first with the **Agentic Daily Quest** system. Submit your work and receive **AI-powered grading** and feedback, ensuring continuous progress.
 
-### 📈 5. Player Stats & Visualizations
-Your growth, visualized.
-- **Knowledge Map**: Domain distribution (Backend, Frontend, AI, etc.).
-- **Skill Proficiency**: Bar charts of your top competencies.
-- **Skill Distribution**: Radar charts showing your professional balance.
-- **Activity Curve**: Track your XP gains over time.
+### 📈 Continuous Progress Engine (Mastery Tracker)
+Your growth, visualized and tracked by the agentic mastery engine. Skill mastery levels are updated automatically, reflecting your real progress.
 
-### 🏰 6. Tiered Discord Communities
+### 🏰 Tiered Discord Communities
 Unlock access to specialized professional guilds as you gain XP.
 - **Beginner Community** (500 XP)
 - **Intermediate Community** (1000 XP)

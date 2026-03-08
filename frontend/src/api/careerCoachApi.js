@@ -145,3 +145,24 @@ export async function getUserMastery(userId) {
   const res = await fetch(`${BASE_URL}/user/${userId}/mastery`)
   return _handleResponse(res)
 }
+
+/**
+ * Run the full Agentic Intelligence Loop for a user.
+ *
+ * This is the core of the agentic AI system — it does:
+ *   OBSERVE → REASON → PLAN → ACT → REFLECT
+ *
+ * Unlike all other API calls (which are reactive — called by user clicks),
+ * this is called proactively on a timer so the agent continuously works
+ * toward the user's career goal without waiting for interaction.
+ *
+ * @param {string} userId
+ * @returns {Promise<AgentLoopReport>}
+ */
+export async function runAgentLoop(userId) {
+  const res = await fetch(`${BASE_URL}/agent/run/${userId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  return _handleResponse(res)
+}

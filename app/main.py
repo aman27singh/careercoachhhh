@@ -415,6 +415,27 @@ def refresh_market(write: bool = True) -> MarketRefreshResponse:
     return MarketRefreshResponse(**result)
 
 
+# ── Agentic Intelligence Loop ─────────────────────────────────────────────────
+
+@app.post("/agent/run/{user_id}")
+def run_agent(user_id: str):
+    """Run the full Agentic Intelligence Loop for a user.
+
+    This is the core of the agentic AI system. It autonomously:
+      1. OBSERVE  — gather all available signals about the user's state
+      2. REASON   — LLM analyzes the state and decides the highest-impact action
+      3. PLAN     — build a structured sequence of tool calls
+      4. ACT      — execute each planned tool autonomously
+      5. REFLECT  — store results, update user state, return insights
+
+    Unlike every other endpoint (which are reactive — triggered by user clicks),
+    this endpoint runs the agent proactively. The frontend polls it regularly
+    so the agent continuously works toward the user's career goal.
+    """
+    from app.agents.agentic_loop import run_agent_loop
+    return run_agent_loop(user_id)
+
+
 # ── Learning Resources ────────────────────────────────────────────────────────
 
 @app.post("/get-resources", response_model=GetResourcesResponse)

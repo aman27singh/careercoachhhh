@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import './App.css'
-import { analyzeProfile, generateCareerPlan, evaluateTask, generateChallenge, getSkillImpact, refreshMarketData, getLearningResources, getUserMastery } from './api/careerCoachApi'
+import { analyzeProfile, generateCareerPlan, evaluateTask, generateChallenge, getSkillImpact, refreshMarketData, getLearningResources, getUserMastery, runAgentLoop } from './api/careerCoachApi'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
 import {
@@ -68,6 +68,12 @@ function App() {
     try { return JSON.parse(localStorage.getItem('careeros_market_stats') || 'null') } catch { return null }
   })
 
+  // ── Agentic Intelligence Loop state ──────────────────────────────────────
+  const [agentReport, setAgentReport] = useState(null)
+  const [agentRunning, setAgentRunning] = useState(false)
+  const [agentLog, setAgentLog] = useState([])  // history of last N agent runs
+  const [agentStep, setAgentStep] = useState(null)  // current step: OBSERVE|REASON|PLAN|ACT|REFLECT
+
   const handleOnboardingComplete = async (data) => {
     // Strip the File object before persisting (not serialisable)
     const { resumeFile, ...persistable } = data
@@ -128,6 +134,69 @@ function App() {
     getUserMastery('user_1').then(setMasteryData).catch(() => {})
   }, [])
 
+  // Add auto-refresh for mastery tracker and market stats
+  useEffect(() => {
+    const interval = setInterval(() => {
+      getUserMastery('user_1').then(setMasteryData).catch(() => {})
+    }, 60000) // auto-refresh every 60s
+    getUserMastery('user_1').then(setMasteryData).catch(() => {})
+    return () => clearInterval(interval)
+  }, [])
+  useEffect(() => {
+    refreshMarketData().then(data => {
+      const stats = { ...data, refreshed_at: new Date().toISOString() }
+      setMarketStats(stats)
+      localStorage.setItem('careeros_market_stats', JSON.stringify(stats))
+    }).catch(() => {})
+    // Agentic auto-refresh market stats every 2 hours
+    const interval = setInterval(() => {
+      refreshMarketData().then(data => {
+        const stats = { ...data, refreshed_at: new Date().toISOString() }
+        setMarketStats(stats)
+        localStorage.setItem('careeros_market_stats', JSON.stringify(stats))
+      }).catch(() => {})
+    }, 7200000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // ── Agentic Intelligence Loop — polls autonomously every 45 seconds ──────
+  // Unlike all other calls (which are user-triggered), this runs on a timer.
+  // The agent wakes up, observes the user's state, reasons with the LLM,
+  // plans tool calls, executes them, and reflects — all without user interaction.
+  const triggerAgentLoop = async () => {
+    if (agentRunning) return
+    setAgentRunning(true)
+    const steps = ['OBSERVE', 'REASON', 'PLAN', 'ACT', 'REFLECT']
+    let i = 0
+    const stepTimer = setInterval(() => {
+      setAgentStep(steps[i])
+      i++
+      if (i >= steps.length) clearInterval(stepTimer)
+    }, 600)
+    try {
+      const report = await runAgentLoop('user_1')
+      setAgentReport(report)
+      setAgentLog(prev => [report, ...prev].slice(0, 8))
+      // If agent updated priority skill, reload metrics
+      if (report?.outcomes?.next_priority_skill) {
+        fetch(`${BASE_URL}/metrics/user_1`).then(r => r.json()).then(setMetrics).catch(() => {})
+      }
+    } catch (e) {
+      // non-fatal — agent runs in background
+    } finally {
+      clearInterval(stepTimer)
+      setAgentStep(null)
+      setAgentRunning(false)
+    }
+  }
+
+  useEffect(() => {
+    // Run once on mount, then every 45 seconds
+    triggerAgentLoop()
+    const interval = setInterval(triggerAgentLoop, 45000)
+    return () => clearInterval(interval)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loading) return <div className="loading-state"><Sparkles className="spin" /></div>
 
   // Single source-of-truth for "all skills this user knows"
@@ -146,7 +215,7 @@ function App() {
       <main className="main-content">
         <DashboardHeader metrics={metrics} />
 
-        {activeTab === 'dashboard' && <Dashboard metrics={metrics} setActiveTab={setActiveTab} userName={userName} onSetName={handleSetName} masteryData={masteryData} marketStats={marketStats} />}
+        {activeTab === 'dashboard' && <Dashboard metrics={metrics} setActiveTab={setActiveTab} userName={userName} onSetName={handleSetName} masteryData={masteryData} marketStats={marketStats} agentReport={agentReport} agentRunning={agentRunning} agentStep={agentStep} agentLog={agentLog} onRunAgent={triggerAgentLoop} />}
         {activeTab === 'profile-scan' && (
           <ProfileScan result={scanResult} setResult={setScanResult} />
         )}
@@ -489,24 +558,21 @@ const CareerIntelligence = ({ metrics, masteryData, marketStats, setActiveTab })
 
         {nextSkill && (
           <div
-            onClick={() => setActiveTab('daily-quest')}
             style={{
               padding: '1.25rem',
-              background: 'linear-gradient(135deg, rgba(0,240,255,0.08) 0%, rgba(0,240,255,0.03) 100%)',
-              border: '1px solid rgba(0,240,255,0.3)', borderRadius: '14px',
-              cursor: 'pointer', transition: 'all 0.2s',
-              display: 'flex', flexDirection: 'column', gap: '0.4rem',
+              background: 'linear-gradient(135deg, rgba(0,240,255,0.07) 0%, rgba(0,240,255,0.02) 100%)',
+              border: '1px solid rgba(0,240,255,0.25)', borderRadius: '14px', marginBottom: '1.5rem',
             }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,240,255,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,240,255,0.08) 0%, rgba(0,240,255,0.03) 100%)'; e.currentTarget.style.transform = 'none' }}
           >
             <div style={{ fontSize: '0.68rem', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              🎯 AI Recommended Next Skill
-              <span style={{ background: 'rgba(0,240,255,0.15)', border: '1px solid rgba(0,240,255,0.35)', borderRadius: '999px', padding: '0.1rem 0.5rem', fontSize: '0.6rem', letterSpacing: '0.06em' }}>AGENTIC LOOP</span>
+              🤖 Autonomous Skill Recommendation
+              <span style={{ background: 'rgba(0,240,255,0.15)', border: '1px solid rgba(0,240,255,0.35)', borderRadius: '999px', padding: '0.1rem 0.5rem', fontSize: '0.6rem', letterSpacing: '0.06em' }}>AGENTIC INTELLIGENCE LOOP</span>
             </div>
             <div style={{ fontWeight: 800, fontSize: '1.35rem', color: 'var(--text-primary)', lineHeight: 1.2 }}>{nextSkill}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>Re-ranked by market demand · gap severity · your mastery</div>
-            <div style={{ marginTop: '0.3rem', fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 700 }}>→ Eat the Frog</div>
+            <div style={{ marginTop: '0.3rem', fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 700 }}>→ Agentic Quest: Tackle your highest-impact skill</div>
           </div>
         )}
 
@@ -574,10 +640,164 @@ const CareerIntelligence = ({ metrics, masteryData, marketStats, setActiveTab })
   )
 }
 
-const Dashboard = ({ metrics, setActiveTab, userName, onSetName, masteryData, marketStats }) => {
+const LOOP_STEPS = ['OBSERVE', 'REASON', 'PLAN', 'ACT', 'REFLECT']
+const STEP_ICONS = { OBSERVE: '👁', REASON: '🧠', PLAN: '📋', ACT: '⚡', REFLECT: '🔄' }
+const STEP_DESC = {
+  OBSERVE: 'Gathering signals — skills, mastery, XP, market trends',
+  REASON: 'LLM analyzing state and deciding highest-impact action',
+  PLAN: 'Building prioritized sequence of tool calls',
+  ACT: 'Executing tools: gap analysis · impact scoring · quest generation',
+  REFLECT: 'Storing outcomes, updating user state, generating insights',
+}
+
+const AgentActivityFeed = ({ agentReport, agentRunning, agentStep, agentLog, onRunAgent }) => {
+  return (
+    <div className="result-card" style={{ marginBottom: '1.5rem', border: '1px solid rgba(0,240,255,0.3)', background: 'linear-gradient(135deg, rgba(0,10,30,0.95) 0%, rgba(0,5,20,0.98) 100%)' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.2rem' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <span style={{ fontSize: '1.1rem' }}>🤖</span>
+            <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-primary)' }}>Agentic Intelligence Loop</span>
+            {agentRunning && (
+              <span style={{ background: 'rgba(0,240,255,0.15)', border: '1px solid rgba(0,240,255,0.4)', borderRadius: '999px', padding: '0.1rem 0.6rem', fontSize: '0.62rem', letterSpacing: '0.08em', color: 'var(--accent-primary)', animation: 'pulse 1.5s infinite' }}>
+                RUNNING
+              </span>
+            )}
+            {!agentRunning && agentReport && (
+              <span style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)', borderRadius: '999px', padding: '0.1rem 0.6rem', fontSize: '0.62rem', letterSpacing: '0.08em', color: '#4ade80' }}>
+                IDLE
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+            Autonomous · Observe → Reason → Plan → Act → Reflect · Auto-runs every 45s
+          </div>
+        </div>
+        <button
+          onClick={onRunAgent}
+          disabled={agentRunning}
+          style={{
+            padding: '0.4rem 1rem', borderRadius: '8px', border: '1px solid rgba(0,240,255,0.4)',
+            background: agentRunning ? 'rgba(0,240,255,0.05)' : 'rgba(0,240,255,0.12)',
+            color: 'var(--accent-primary)', fontSize: '0.78rem', fontWeight: 700,
+            cursor: agentRunning ? 'not-allowed' : 'pointer', opacity: agentRunning ? 0.5 : 1,
+          }}
+        >
+          {agentRunning ? 'Running…' : '▶ Run Agent Now'}
+        </button>
+      </div>
+
+      {/* Loop Step Visualizer */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '1.2rem', overflowX: 'auto', paddingBottom: '0.2rem' }}>
+        {LOOP_STEPS.map((step, i) => {
+          const isActive = agentRunning && agentStep === step
+          const isDone = agentReport && !agentRunning
+          return (
+            <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem',
+                padding: '0.5rem 0.75rem', borderRadius: '10px', minWidth: '68px',
+                background: isActive ? 'rgba(0,240,255,0.18)' : isDone ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${isActive ? 'rgba(0,240,255,0.6)' : isDone ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                transition: 'all 0.3s',
+              }}>
+                <span style={{ fontSize: '1.1rem' }}>{STEP_ICONS[step]}</span>
+                <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', color: isActive ? 'var(--accent-primary)' : isDone ? '#4ade80' : 'var(--text-muted)' }}>
+                  {step}
+                </span>
+              </div>
+              {i < LOOP_STEPS.length - 1 && (
+                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.8rem' }}>→</span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Active step description */}
+      {agentRunning && agentStep && (
+        <div style={{ background: 'rgba(0,240,255,0.07)', border: '1px solid rgba(0,240,255,0.2)', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.78rem', color: 'var(--accent-primary)' }}>
+          <strong>{agentStep}:</strong> {STEP_DESC[agentStep]}
+        </div>
+      )}
+
+      {/* Last Agent Report */}
+      {agentReport && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          {/* Reasoning */}
+          <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '0.9rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>🧠 Agent Reasoning</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{agentReport.reasoning || '—'}</div>
+          </div>
+          {/* Actions taken */}
+          <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '0.9rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>⚡ Actions Taken</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {(agentReport.actions_taken || []).map((a, i) => (
+                <span key={i} style={{ fontSize: '0.75rem', color: a.startsWith('✓') ? '#4ade80' : '#f87171' }}>{a}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Outcomes */}
+      {agentReport?.outcomes && Object.keys(agentReport.outcomes).length > 0 && (
+        <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', padding: '0.9rem', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.6rem' }}>✅ Outcomes</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            {agentReport.outcomes.next_priority_skill && (
+              <span style={{ background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.3)', borderRadius: '8px', padding: '0.25rem 0.65rem', fontSize: '0.74rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                🎯 Next: {agentReport.outcomes.next_priority_skill}
+              </span>
+            )}
+            {agentReport.outcomes.alignment_score !== undefined && (
+              <span style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '8px', padding: '0.25rem 0.65rem', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                📊 Alignment: {Math.round(agentReport.outcomes.alignment_score * 100)}%
+              </span>
+            )}
+            {(agentReport.outcomes.top_gaps || []).map(g => (
+              <span key={g} style={{ background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: '8px', padding: '0.25rem 0.65rem', fontSize: '0.74rem', color: '#fb923c' }}>⚠ Gap: {g}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Agent message */}
+      {agentReport?.agent_message && (
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem' }}>
+          💬 {agentReport.agent_message}
+          {agentReport.agent_run_at && (
+            <span style={{ marginLeft: '0.6rem', fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>
+              · {new Date(agentReport.agent_run_at).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* History */}
+      {agentLog.length > 1 && (
+        <div style={{ marginTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem' }}>
+          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>Agent Run History</div>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {agentLog.slice(1).map((r, i) => (
+              <span key={i} style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', padding: '0.2rem 0.5rem', color: 'var(--text-muted)' }}>
+                {new Date(r.agent_run_at).toLocaleTimeString()} · {r.outcomes?.next_priority_skill || 'no skill'}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const Dashboard = ({ metrics, setActiveTab, userName, onSetName, masteryData, marketStats, agentReport, agentRunning, agentStep, agentLog, onRunAgent }) => {
   return (
     <>
       <WelcomeSection metrics={metrics} userName={userName} onSetName={onSetName} />
+      <AgentActivityFeed agentReport={agentReport} agentRunning={agentRunning} agentStep={agentStep} agentLog={agentLog} onRunAgent={onRunAgent} />
       <CareerIntelligence metrics={metrics} masteryData={masteryData} marketStats={marketStats} setActiveTab={setActiveTab} />
       <StatsGrid metrics={metrics} />
       <ActionGrid setActiveTab={setActiveTab} />
